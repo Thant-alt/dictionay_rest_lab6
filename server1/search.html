@@ -1,1 +1,58 @@
+<!DOCTYPE html>
+<html>
 
+<head>
+    <title>Dictionary Search</title>
+</head>
+
+<body>
+    <h1>Dictionary Search</h1>
+    <form id="search-form">
+        <label for="search-input">Search for a word:</label>
+        <input type="text" id="search-input" name="word" required>
+        <button type="submit" id="submitButton">Search</button>
+    </form>
+
+        <p id="definition"></p>
+    <p id="message"></p>
+    <p id="requestCount"></p>
+    <p id="error"></p>
+    <script type="module">
+        import {strings} from "../scripts/strings.js";
+        document.addEventListener("DOMContentLoaded", () => {
+            const submitButton = document.getElementById("submitButton");
+            submitButton.addEventListener("click", (event) => {
+                event.preventDefault(); // prevent the form from submitting
+                getWord();
+            })
+        })
+
+        function getWord() {
+            const word = document.getElementById("search-input").value.toLowerCase();
+            if(!word) {
+                document.getElementById('definition').innerHTML = "";
+                document.getElementById('message').innerHTML = strings.WORD_CANNOT_BE_EMPTY;
+                return;
+            }
+            fetch(`http://localhost:3000/labs/lab62/api/v1/definition/${word}`) 
+            .then(response => response.json())
+            .then((data) => {
+                console.log(data);
+                document.getElementById("definition").innerHTML = ""; 
+                document.getElementById("message").innerHTML = data.message;
+                document.getElementById("requestCount").innerHTML = `${strings.TOTAL} ${data.requestCount}`;
+
+                if (data.success) {
+                    const definition = data.result[0].definition;
+                    document.getElementById("definition").innerHTML = `${strings.DEFINITION}: ${definition}`;
+                }
+            }).catch((error) => {
+                console.log(error);
+                document.getElementById("message").innerHTML = error;
+            })
+        }
+
+
+    </script>
+
+</body>

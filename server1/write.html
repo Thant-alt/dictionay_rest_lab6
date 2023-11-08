@@ -1,1 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document</title>
+</head>
+
+<body>
+  <h1>Enter a New Dictionary Entry</h1>
+  <form id="entryForm">
+    <label for="word">Word:</label>
+    <input type="text" id="word" name="word" required /><br /><br />
+
+    <label for="definition">Definition:</label>
+    <textarea id="definition" name="definition" rows="4" required></textarea><br /><br />
+
+    <label for="word_language">Word Language:</label>
+    <select class="language-drop-down" id="word_language" name="word_language">
+    </select><br /><br />
+
+    <label for="definition_language">Definition Language:</label>
+    <select class="language-drop-down" id="definition_language" name="definition_language">
+    </select><br /><br />
+
+    <button type="submit" id="submitButton">
+      Submit Entry
+    </button>
+    <br /><br />
+    <button type="button" id="deleteButton">Delete Word</button>
+    <p id="message"></p>
+    <p id="entry"></p>
+    <p id="requestCount"></p>
+    <p id="error"></p>
+  </form>
+</body>
+
+<script type="module">
+    import {strings} from "../scripts/strings.js";
+    document.addEventListener("DOMContentLoaded", () => {
+        const submitButton = document.getElementById("submitButton");
+        submitButton.addEventListener("click", (event) => {
+            event.preventDefault(); // prevent the form from submitting
+            parseQuery();
+        })
+
+        const deleteButton = document.getElementById("deleteButton");
+        deleteButton.addEventListener("click", deleteEntry);
+    })
+
+    function parseQuery() {
+        const word = document.getElementById("word").value;
+        const definition = document.getElementById("definition").value;
+        const wordLanguage = document.getElementById("word_language").value;
+        const definitionLanguage = document.getElementById("definition_language").value;
+
+        const json_query = {
+            word: word,
+            definition: definition,
+            wordLanguage: wordLanguage,
+            definitionLanguage: definitionLanguage
+        }
+        sendQuery(json_query);
+    }
+
+    function sendQuery(json_query) {
+        fetch('http://localhost:3000/labs/lab62/api/v1/definition', {
+            method: strings.POST,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(json_query)
+        }).then((response) => {
+            if (response.status === 200 || response.status === 201) { // 200 is success, 201 is created
+                return response.json();
+            } else if (response.status === 409) // 409 is conflict
+            { // if the word already exists, ask the user if they want to update the definition
+                return window.confirm(strings.UPDATE_CONFIRM_MESSAGE)
+                ? patchQuery(query) : response.json();
+            } else {
+                return response.json(); // return the error message
+            }
+        }).then ((data) => {
+            console.log(data);
+            document.getElementById("message").innerHTML = data.message;
+            document.getElementById("entry").innerHTML = JSON.stringify(data.entry);
+            document.getElementById("requestCount").innerHTML = data.requestCount;
+            document.getElementById("error").innerHTML = ""; // clear any previous error messages
+        }).catch((error) => {
+            console.log(error);
+            document.getElementById("error").innerHTML = JSON.stringify(error, null, 2); // null, 2 is for formatting
+        })
+    }
+
+    function patchQuery(json_query) {
+        fetch(`http://localhost:3000/labs/lab62/api/v1/definition/${word}`, {
+            method: strings.PATCH,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(json_query)
+        }).then((response) => {
+            if(!response.ok) {
+                throw new Error(strings.REQUEST_FAILED);
+            } return response.json();
+        }).then((data) => {
+            console.log(data);
+            document.getElementById("message").innerHTML = data.message;
+            document.getElementById("entry").innerHTML = JSON.stringify(data.entry, null, 2);
+            document.getElementById("requestCount").innerHTML = data.requestCount;
+        }).catch((error) => {
+            console.log(error); 
+            document.getElementById("error").innerHTML = JSON.stringify(error, null, 2);
+        })
+    }
+
+    function populateDropDown(languages) {
+        const dropDowns = document.querySelectorAll(".language-drop-down");
+        dropDowns.forEach((dropDown) => {
+            languages.forEach((language) => {
+                const option = document.createElement(strings.OPTION);
+                option.value = language.name;
+                option.textContent = language.name;
+                dropDown.appendChild(option);
+            })
+        })
+    }
+
+    function getLanguage() {
+        fetch('http://localhost:3000/labs/lab62/api/v1/languages')
+        .then((response) => {
+            if(!response.ok) {
+                throw new Error(strings.ERROR_GETTING_LANGUAGES);
+            } return response.json();
+            
+        })
+        .then((data) => {
+            console.log(data);
+            populateDropDown(data.result);
+        })
+        .catch((error) => {
+            console.log(error);
+            document.getElementById("error").innerHTML = JSON.stringify(error, null, 2);
+        })
+    }
+    getLanguage();
+
+
+    function deleteEntry() {
+        const word = document.getElementById("word").value;
+        if(!word) {
+            document.getElementById("messsage").innerHTML = strings.WORD_CANNOT_BE_EMPTY;
+            return;
+        }
+        fetch(`http://localhost:3000/labs/lab62/api/v1/definition/${word}`, {
+            method: strings.DELETE,
+            headers: {'Content-Type': 'application/json'},
+        }).then((response) => {return response.json()})
+        .then((data) => {
+            console.log(data);
+            document.getElementById("message").innerHTML = data.message;
+            document.getElementById("entry").innerHTML = JSON.stringify(data.entry, null, 2);
+            document.getElementById("requestCount").innerHTML = data.requestCount;
+            document.getElementById("error").innerHTML = "";
+        }).catch((error) => {
+            console.log(error);
+            document.getElementById("error").innerHTML = JSON.stringify(error, null, 2);
+        })
+    }
+
+</script>
